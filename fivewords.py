@@ -56,8 +56,8 @@ def emit(progress):
     print(*sorted(next(iter(wordnames[word])) for word in progress))
     count += 1
 
-def solve(alphabet, bits_left, progress=array.array('L', (0, 0, 0, 0, 0)), depth=0):
-  while bits_left + 5 * depth >= 25:
+def solve(alphabet, grace=1, progress=array.array('L', (0, 0, 0, 0, 0)), depth=0):
+  for drop in range(grace + 1):
     first = alphabet.bit_length() - 1
     for pack in firstletter[first]:
       required = decompress(pack)
@@ -68,10 +68,9 @@ def solve(alphabet, bits_left, progress=array.array('L', (0, 0, 0, 0, 0)), depth
             if depth >= 4:
               emit(progress)
             else:
-              solve(alphabet & ~mask, bits_left - 5, progress, depth + 1)
-    alphabet &= ~(1 << first)
-    bits_left -= 1
+              solve(alphabet & ~mask, grace - drop, progress, depth + 1)
+    alphabet ^= 1 << first
 
 alphabet = (1 << 26) - 1
-solve(alphabet, alphabet.bit_count())
+solve(alphabet)
 print(f'total: {count}')
