@@ -4,8 +4,25 @@ import itertools
 import array
 
 anagrams = False
-firstletter = [ [ set() for _ in range(f) ] for f in range(26) ]
+firstletter = [ {} for f in range(26) ]
 wordnames = {}
+
+# TODO: find the proper balance between these two implementations
+#
+#def compress(word):
+#  shift = (word ^ (word - 1)).bit_length()
+#  return ((shift - 1) << 8) | ((word >> shift) & 255)
+#
+#def decompress(pack):
+#  shift = pack >> 8
+#  bits = pack & 255
+#  return (bits * 2 + 1) << shift
+
+def compress(word):
+  return (word ^ (word - 1)).bit_length() - 1
+
+def decompress(pack):
+  return 1 << pack
 
 def letter_to_bit(c):
   return 'aesiorunltycdhmpgkbwfvzjxq'.find(c)
@@ -24,10 +41,9 @@ with open('words_alpha.txt') as wordlist:
         mask |= b
       else:
         first = mask.bit_length() - 1
-        tmp = mask & (mask - 1)
-        last = (mask ^ tmp).bit_length() - 1
+        pack = compress(mask)
         wordnames.setdefault(mask, set()).add(word)
-        firstletter[first][last].add(mask)
+        firstletter[first].setdefault(pack, set()).add(mask)
 
 count = 0
 def emit(progress):
@@ -43,9 +59,10 @@ def emit(progress):
 def solve(alphabet, bits_left, progress=array.array('L', (0, 0, 0, 0, 0)), depth=0):
   while bits_left + 5 * depth >= 25:
     first = alphabet.bit_length() - 1
-    for last in range(first):
-      if ((alphabet >> last) & 1) != 0:
-        for mask in firstletter[first][last]:
+    for pack in firstletter[first]:
+      required = decompress(pack)
+      if (alphabet & required) == required:
+        for mask in firstletter[first][pack]:
           if (mask & alphabet) == mask:
             progress[depth] = mask
             if depth >= 4:
