@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import itertools
+import array
 
 anagrams = False
-firstletter = [ dict() for _ in range(26) ]
+firstletter = [ [ set() for _ in range(f) ] for f in range(26) ]
+wordnames = {}
 
 def letter_to_bit(c):
   return 'aesiorunltycdhmpgkbwfvzjxq'.find(c)
@@ -22,32 +24,34 @@ with open('words_alpha.txt') as wordlist:
         mask |= b
       else:
         first = mask.bit_length() - 1
-        wordlist = firstletter[first].setdefault(mask, set())
-        wordlist.add(word)
+        tmp = mask & (mask - 1)
+        last = (mask ^ tmp).bit_length() - 1
+        wordnames.setdefault(mask, set()).add(word)
+        firstletter[first][last].add(mask)
 
 count = 0
 def emit(progress):
   global count
   if anagrams:
-    for s in itertools.product(*progress):
+    for s in itertools.product(*(wordnames[word] for word in progress)):
       print(*sorted(s))
       count += 1
   else:
-    print(*sorted(next(iter(words)) for words in progress))
+    print(*sorted(next(iter(wordnames[word])) for word in progress))
     count += 1
 
-def solve(alphabet, bits_left, progress=[]):
-  depth = len(progress)
+def solve(alphabet, bits_left, progress=array.array('L', (0, 0, 0, 0, 0)), depth=0):
   while bits_left + 5 * depth >= 25:
     first = alphabet.bit_length() - 1
-    for mask, words in firstletter[first].items():
-      if (mask & alphabet) == mask:
-        new_progress = progress + [words]
-        if depth >= 4:
-          emit(new_progress)
-        else:
-          new_alphabet = alphabet & ~mask
-          solve(new_alphabet, bits_left - 5, new_progress)
+    for last in range(first):
+      if ((alphabet >> last) & 1) != 0:
+        for mask in firstletter[first][last]:
+          if (mask & alphabet) == mask:
+            progress[depth] = mask
+            if depth >= 4:
+              emit(progress)
+            else:
+              solve(alphabet & ~mask, bits_left - 5, progress, depth + 1)
     alphabet &= ~(1 << first)
     bits_left -= 1
 
